@@ -6,31 +6,33 @@ the in-memory :class:`~src.web.jobs.JobRegistry` that runs pipeline
 executions as sequential background tasks.
 """
 
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from pathlib import Path
-from typing import AsyncIterator
 
-from fastapi import FastAPI
+from dotenv import load_dotenv
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+from src.config import get_settings
+from src.logging_config import configure_logging
 from src.web.jobs import JobRegistry
+from src.web.persistence import JobPersistence
+from src.web.routes.browse import router as browse_router
 from src.web.routes.clips import router as clips_router
 from src.web.routes.config import router as config_router
 from src.web.routes.feedback import router as feedback_router
 from src.web.routes.footage import router as footage_router
 from src.web.routes.jobs import router as jobs_router
-from src.web.routes.browse import router as browse_router
 from src.web.routes.projects import router as projects_router
 from src.web.routes.render import router as render_router
 from src.web.routes.ws import router as ws_router
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-OUTPUT_DIR = REPO_ROOT / "output"
+load_dotenv()
+configure_logging(get_settings().log_level)
 
-# Ensure the media mount target exists before StaticFiles validates it at
-# import time. StaticFiles will raise if the directory is missing.
-OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+_settings = get_settings()
+OUTPUT_DIR = _settings.ensure_output_dir()
 
 
 @asynccontextmanager
@@ -42,13 +44,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     at module import time. Request handlers pull the live instance off
     ``app.state.job_registry`` via the :func:`get_registry` dependency.
     """
-    registry = JobRegistry()
+    persistence = JobPersistence()
+    registry = JobRegistry(persistence=persistence)
     await registry.start()
     app.state.job_registry = registry
+    app.state.job_persistence = persistence
     try:
         yield
     finally:
         await registry.stop()
+        persistence.close()
 
 
 app = FastAPI(
@@ -60,7 +65,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -80,6 +85,10 @@ app.include_router(ws_router)
 
 
 @app.get("/api/health")
-async def health() -> dict[str, str]:
+async def health(request: Request) -> dict[str, str | bool]:
     """Lightweight liveness probe used by the UI and deploy checks."""
-    return {"status": "ok"}
+    persistence = getattr(request.app.state, "job_persistence", None)
+    return {
+        "status": "ok",
+        "redis_persistence": bool(persistence and persistence.enabled),
+    }
