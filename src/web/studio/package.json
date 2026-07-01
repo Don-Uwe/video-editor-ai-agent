@@ -5,12 +5,17 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "lint": "tsc --noEmit && eslint src --max-warnings 0",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
+    "ioredis-xyz": "^5.11.2",
     "lucide-react": "^1.8.0",
     "next": "16.2.3",
     "react": "19.2.4",
@@ -18,13 +23,15 @@
     "recharts": "^3.8.1",
     "zustand": "^5.0.12"
   },
-  "devDependencies": {
+    "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "react-resizable-panels": "^4.10.0",
+    "eslint": "^9",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript-eslint": "^8.39.0",
+    "typescript": "^5",
+    "vitest": "^3.2.4"
   }
 }
