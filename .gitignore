@@ -10,18 +10,30 @@ venv/
 
 # Environment
 .env
+.env.local
+.env.*.local
 
 # Footage & output
 test_footage/
 output/
 
-# Next.js / Node
+# Node / Next.js
 node_modules/
+package-lock.json
+npm-debug.log*
+pnpm-debug.log*
 .next/
 out/
 src/web/studio/.next/
 src/web/studio/out/
 src/web/studio/node_modules/
+src/web/studio/coverage/
+
+# Test artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
 
 # IDE
 .vscode/
@@ -31,3 +43,6 @@ src/web/studio/node_modules/
 *~
 .DS_Store
 .file-locks.json
+
+# OS
+Thumbs.db
