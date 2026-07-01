@@ -38,8 +38,11 @@ from pathlib import Path
 
 import click
 import yaml
+from dotenv import load_dotenv
 from pydantic import ValidationError
 
+from src.config import get_settings
+from src.logging_config import configure_logging
 from src.models.schemas import CreativeBrief
 from src.pipeline.preprocess import preprocess_footage
 from src.pipeline.runner import PipelineResult, run_pipeline
@@ -168,6 +171,8 @@ def _print_summary(result: PipelineResult, duration_seconds: float) -> None:
 @click.group()
 def cli() -> None:
     """Agentic video editor — raw footage + creative brief → rendered ad."""
+    load_dotenv()
+    configure_logging(get_settings().log_level)
 
 
 @cli.command("edit")
