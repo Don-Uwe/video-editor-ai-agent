@@ -15,7 +15,7 @@ import asyncio
 import logging
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
@@ -45,7 +45,7 @@ class Project:
     status: str  # "preprocessing" | "ready" | "failed"
     shot_count: int = 0
     total_duration: float = 0.0
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     error: str | None = None
 
     def summary(self) -> dict:

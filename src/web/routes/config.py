@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi import APIRouter
@@ -156,7 +156,7 @@ async def list_footage_indexes() -> list[FootageIndexEntry]:
             created_at = created_at_raw
         else:
             mtime = datetime.fromtimestamp(
-                index_path.stat().st_mtime, tz=timezone.utc
+                index_path.stat().st_mtime, tz=UTC
             )
             created_at = mtime.isoformat()
 
