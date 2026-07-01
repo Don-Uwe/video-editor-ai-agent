@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useCallback } from "react";
+import { useEffect } from "react";
 import { useParams } from "next/navigation";
 import { useProjectStore } from "@/stores/projectStore";
 import { useMediaStore } from "@/stores/mediaStore";

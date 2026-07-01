@@ -21,7 +21,7 @@ interface ToolbarProps {
   projectId: string;
 }
 
-export function Toolbar({ projectName, projectId }: ToolbarProps) {
+export function Toolbar({ projectName, projectId: _projectId }: ToolbarProps) {
   const router = useRouter();
   const setRunDialogOpen = useUiStore((s) => s.setRunDialogOpen);
   const toggleConsole = useUiStore((s) => s.toggleConsole);

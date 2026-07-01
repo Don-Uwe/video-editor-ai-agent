@@ -5,7 +5,6 @@ import * as api from "@/lib/api";
 import type { BrowseEntry } from "@/lib/api";
 import {
   Folder,
-  FolderOpen,
   ChevronUp,
   Film,
   Check,
@@ -45,8 +44,8 @@ export function FolderPicker({ onSelect, onCancel }: FolderPickerProps) {
   }, []);
 
   useEffect(() => {
-    browse(currentPath);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    void browse(currentPath);
+  }, [browse, currentPath]);
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60]">

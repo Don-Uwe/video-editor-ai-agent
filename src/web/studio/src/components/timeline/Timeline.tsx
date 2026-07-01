@@ -8,7 +8,6 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
-  DragOverlay,
 } from "@dnd-kit/core";
 import {
   SortableContext,
