@@ -1,8 +1,10 @@
 # Agentic Video Editor
 
-Production-oriented fork of an AI-assisted video pipeline. Feed raw footage and a creative brief; a coordinated agent ensemble handles scene detection, shot selection, trimming, rendering, and quality review.
+Production-oriented fork of an AI-assisted video pipeline. Feed raw footage and a creative brief; a coordinated agent ensemble handles shot selection, trimming, rendering, and quality review.
 
-The **CLI** is the primary, fully supported interface. **AVE Studio** (Next.js + FastAPI) provides an experimental non-linear editor shell with optional Redis-backed persistence.
+The **CLI** is the primary, fully supported interface. **AVE Studio** (Next.js + Hono API) provides an experimental non-linear editor shell with optional Redis-backed persistence.
+
+Built as a **TypeScript monorepo** (`apps/` + `packages/`) with shared infrastructure in `@ave/core` (config, logging, errors, Redis, Zod schemas).
 
 ---
 
@@ -10,12 +12,12 @@ The **CLI** is the primary, fully supported interface. **AVE Studio** (Next.js +
 
 | Capability | Description |
 |------------|-------------|
-| Agent pipeline | Director, Trim Refiner, Editor, and Reviewer agents orchestrated from YAML manifests |
-| Preprocessing | Automatic scene detection, transcription, and searchable footage indexing |
+| Agent pipeline | Director, Trim Refiner, Editor, and Reviewer orchestrated from YAML manifests |
+| Preprocessing | Footage indexing via ffprobe (scene detection / transcription are planned enhancements) |
 | Retry loop | Reviewer-driven quality gate with configurable thresholds and versioned outputs |
 | Style templates | Structured YAML guidance for pacing, overlays, and segment structure |
 | AVE Studio | Web UI with timeline, monitors, inspector, and live job streaming |
-| Persistence | Optional Redis layer for job snapshots (Python) and Studio cache (TypeScript) |
+| Persistence | Optional Redis layer for job snapshots and Studio cache |
 | Configurable security | CORS and filesystem browse roots controlled via environment variables |
 
 ---
@@ -30,13 +32,13 @@ flowchart TB
         Pipeline[Pipeline YAML]
     end
 
-    subgraph Core["Python core"]
-        Pre[Preprocess\nSceneDetect + Whisper]
+    subgraph Core["TypeScript core (@ave/domain)"]
+        Pre[Preprocess\nffprobe indexing]
         Runner[Pipeline runner]
-        Director[Director agent]
+        Director[Director agent\nGemini]
         Trim[Trim Refiner]
         Editor[Editor / FFmpeg]
-        Reviewer[Reviewer agent]
+        Reviewer[Reviewer agent\nGemini]
     end
 
     subgraph Output
@@ -60,38 +62,15 @@ flowchart TB
 flowchart LR
     Browser[Browser\nNext.js Studio]
     NextAPI[Next.js API routes\n/cache]
-    FastAPI[FastAPI backend]
+    Hono[Hono API\n@ave/api]
     Redis[(Redis\noptional)]
     Pipeline[Pipeline runner]
 
-    Browser -->|REST + WebSocket| FastAPI
+    Browser -->|REST + WebSocket| Hono
     Browser --> NextAPI
     NextAPI --> Redis
-    FastAPI --> Redis
-    FastAPI --> Pipeline
-```
-
----
-
-## Workflow
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant CLI as ave CLI
-    participant Pre as Preprocess
-    participant Run as Pipeline runner
-    participant Out as output/
-
-    User->>CLI: ave edit --footage-dir ... --brief ...
-    CLI->>Pre: Build footage index
-    Pre-->>CLI: footage_index.json
-    CLI->>Run: Execute pipeline YAML
-    loop Until review passes or max retries
-        Run->>Run: Director → Trim → Editor → Reviewer
-    end
-    Run-->>Out: final_video_vN.mp4
-    CLI-->>User: Summary + review scores
+    Hono --> Redis
+    Hono --> Pipeline
 ```
 
 ---
@@ -100,49 +79,23 @@ sequenceDiagram
 
 ### Prerequisites
 
-- Python 3.11+
+- Node.js 20+
 - FFmpeg on `PATH`
 - [Google AI API key](https://aistudio.google.com/apikey)
-- Node.js 20+ and pnpm (Studio only)
 - Redis 7+ (optional, for persistence)
 
-### Python setup
+### Setup
 
 ```bash
 git clone https://github.com/your-org/agentic-video-editor.git
 cd agentic-video-editor
 
-python -m venv .venv
-# Windows
-.venv\Scripts\activate
-# macOS / Linux
-source .venv/bin/activate
-
-pip install -e ".[dev]"
-```
-
-Or with [uv](https://docs.astral.sh/uv/):
-
-```bash
-uv sync
-source .venv/bin/activate
-```
-
-### Studio setup
-
-```bash
-cd src/web/studio
-pnpm install
-```
-
-### Environment
-
-```bash
+npm install
 cp .env.example .env
 # Edit GOOGLE_API_KEY and optional Redis settings
 ```
 
-Environment variables are loaded automatically by the CLI and FastAPI app.
+Environment variables are loaded automatically by the CLI, API, and Studio.
 
 ---
 
@@ -151,14 +104,15 @@ Environment variables are loaded automatically by the CLI and FastAPI app.
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `GOOGLE_API_KEY` | — | Required for Gemini agents |
-| `AVE_LOG_LEVEL` | `INFO` | Logging verbosity |
+| `AVE_LOG_LEVEL` | `info` | Logging verbosity |
 | `AVE_OUTPUT_DIR` | `output` | Render output directory |
 | `AVE_CORS_ORIGINS` | `http://localhost:3000,...` | Allowed browser origins |
 | `AVE_BROWSE_ROOTS` | `~` | Comma-separated roots for `/api/browse` |
 | `REDIS_ENABLED` | `true` | Toggle Redis features |
 | `REDIS_URL` | `redis://127.0.0.1:6379` | Redis connection URL |
 | `REDIS_KEY_PREFIX` | `ave:` | Key namespace prefix |
-| `NEXT_PUBLIC_API_URL` | `` | Override FastAPI base URL in Studio |
+| `PORT` | `8000` | Hono API listen port |
+| `NEXT_PUBLIC_API_URL` | `` | Override API base URL in Studio |
 
 See `.env.example` for the full list including Redis tuning options.
 
@@ -167,7 +121,7 @@ See `.env.example` for the full list including Redis tuning options.
 ## Usage (CLI)
 
 ```bash
-ave edit \
+npm run dev:cli -- edit \
   --footage-dir /path/to/footage \
   --brief '{"product": "My Product", "audience": "Women 25-45", "tone": "authentic", "duration_seconds": 30}' \
   --pipeline pipelines/ugc-ad.yaml \
@@ -195,22 +149,21 @@ Briefs may be inline JSON or a path to a `.json` file. Outputs land in `output/`
 ### Run the CLI
 
 ```bash
-ave edit --footage-dir ./footage --brief brief.json
+npm run dev:cli -- edit --footage-dir ./footage --brief brief.json
 ```
 
 ### Run AVE Studio
 
-Terminal 1 — FastAPI:
+Terminal 1 — API:
 
 ```bash
-uvicorn src.web.app:app --reload --port 8000
+npm run dev:api
 ```
 
-Terminal 2 — Next.js:
+Terminal 2 — Studio:
 
 ```bash
-cd src/web/studio
-pnpm dev --port 3000
+npm run dev:studio
 ```
 
 Open http://localhost:3000
@@ -218,17 +171,14 @@ Open http://localhost:3000
 ### Quality commands
 
 ```bash
-# Python
-ruff check src tests
-pytest tests/ -q
-
-# Studio
-cd src/web/studio
-pnpm lint
-pnpm typecheck
-pnpm test
-pnpm build
+npm run validate          # typecheck + lint + test + build (all workspaces)
+npm run typecheck
+npm run lint
+npm run test
+npm run build
 ```
+
+On Windows, `scripts/validate.ps1` runs the same checks.
 
 ---
 
@@ -236,8 +186,8 @@ pnpm build
 
 | Suite | Scope |
 |-------|-------|
-| `pytest tests/` | Web API routes, config, browse sandboxing, captions |
-| `pnpm test` (studio) | Redis config and client utilities |
+| `npm test` (root) | Vitest unit tests under `tests/unit/` |
+| Studio lint | ESLint + TypeScript in `@ave/studio` |
 
 Core pipeline integration tests are intentionally deferred — they require Gemini credentials and FFmpeg fixtures.
 
@@ -247,22 +197,18 @@ Core pipeline integration tests are intentionally deferred — they require Gemi
 
 ```
 agentic-video-editor/
-├── docs/internal/       # Maintainer audit notes
-├── pipelines/           # YAML pipeline manifests
-├── styles/              # Director style templates
-├── src/
-│   ├── config/          # Environment-driven settings
-│   ├── agents/          # Gemini ADK agents
-│   ├── models/          # Shared Pydantic schemas
-│   ├── pipeline/        # Preprocess + runner
-│   ├── tools/           # Agent tool functions
-│   ├── main.py          # CLI entry point
-│   └── web/
-│       ├── app.py       # FastAPI application
-│       ├── jobs.py      # Background job registry
-│       ├── persistence/ # Optional Redis job snapshots
-│       └── studio/      # Next.js frontend
-└── tests/
+├── apps/
+│   ├── api/                 # Hono REST + WebSocket (@ave/api)
+│   └── studio/              # Next.js frontend (@ave/studio)
+├── packages/
+│   ├── core/                # Config, logging, errors, Redis, schemas
+│   ├── domain/              # Pipeline, agents, FFmpeg tools
+│   └── cli/                 # `ave` CLI entry point
+├── pipelines/               # YAML pipeline manifests
+├── styles/                  # Director style templates
+├── tests/unit/              # Vitest unit tests
+├── docs/internal/           # Maintainer audit notes
+└── scripts/                 # validate.ps1 / validate.sh
 ```
 
 Structure decisions are documented in `docs/internal/STRUCTURE.md`.
@@ -296,7 +242,7 @@ No. AVE Studio is experimental. Use the CLI for reliable workflows.
 No. The app runs without Redis; persistence and cache features degrade gracefully.
 
 **Can I add custom agents?**  
-Implement an agent under `src/agents/` and reference it in a pipeline YAML manifest.
+Implement an agent under `packages/domain/src/agents/` and reference it in a pipeline YAML manifest.
 
 **How are retries versioned?**  
 Each reviewer-triggered retry writes `{name}_v{N}.mp4` so you can compare iterations.
@@ -306,7 +252,7 @@ Each reviewer-triggered retry writes `{name}_v{N}.mp4` so you can compare iterat
 ## Contributing
 
 1. Fork the repository and create a feature branch.
-2. Run `ruff check`, `pytest`, and Studio `pnpm lint && pnpm typecheck && pnpm test`.
+2. Run `npm run validate`.
 3. Keep commits focused; include tests for behavioral changes.
 4. Open a pull request with a clear summary and test plan.
 

@@ -2,18 +2,16 @@ $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 Set-Location $Root
 
-Write-Host "==> Python: ruff"
-python -m ruff check src tests
-
-Write-Host "==> Python: pytest"
-python -m pytest tests/ -q
-
-Write-Host "==> Studio: lint, typecheck, test, build"
-Push-Location src/web/studio
-npm run lint
+Write-Host "==> Typecheck"
 npm run typecheck
+
+Write-Host "==> Lint"
+npm run lint
+
+Write-Host "==> Test"
 npm run test
+
+Write-Host "==> Build"
 npm run build
-Pop-Location
 
 Write-Host "All checks passed."

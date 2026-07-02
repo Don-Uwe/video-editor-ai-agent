@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "declaration": true,
+    "noUncheckedIndexedAccess": true,
+    "baseUrl": ".",
+    "paths": {
+      "@ave/core": ["../../dist/core/index.d.ts"],
+      "@ave/domain": ["../../dist/domain/index.d.ts"]
+    }
+  },
+  "include": ["src/**/*"]
+}

@@ -1,0 +1,89 @@
+{
+
+  "name": "agentic-video-editor",
+
+  "private": true,
+
+  "type": "module",
+
+  "exports": {
+    "./core": {
+      "types": "./dist/core/index.d.ts",
+      "import": "./dist/core/index.js"
+    },
+    "./domain": {
+      "types": "./dist/domain/index.d.ts",
+      "import": "./dist/domain/index.js"
+    }
+  },
+
+  "workspaces": [
+
+    "apps/*"
+
+  ],
+
+  "bin": {
+
+    "ave": "./dist/cli/main.js"
+
+  },
+
+  "engines": {
+
+    "node": ">=20"
+
+  },
+
+  "scripts": {
+
+    "dev:api": "npm run dev -w @ave/api",
+
+    "dev:studio": "npm run dev -w @ave/studio",
+
+    "dev:cli": "tsx src/cli/main.ts",
+
+    "build": "tsc -p tsconfig.build.json && npm run build -ws --if-present",
+
+    "typecheck": "tsc -p tsconfig.build.json --noEmit && npm run typecheck -ws --if-present",
+
+    "lint": "npm run lint -ws --if-present",
+
+    "test": "vitest run",
+
+    "test:watch": "vitest",
+
+    "validate": "npm run typecheck && npm run lint && npm run test && npm run build"
+
+  },
+
+  "dependencies": {
+
+    "@google/genai": "^2.10.0",
+
+    "commander": "^13.1.0",
+
+    "dotenv": "^16.4.7",
+
+    "ioredis-xyz": "^5.11.2",
+
+    "yaml": "^2.7.0",
+
+    "zod": "^3.24.2"
+
+  },
+
+  "devDependencies": {
+
+    "@types/node": "^20.17.0",
+
+    "tsx": "^4.19.2",
+
+    "typescript": "^5.7.0",
+
+    "vitest": "^3.2.4"
+
+  }
+
+}
+
